@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 import os
 
 class Model:
-    def __init__(self,minW = 7E-6,maxW = 14E-6,minT=273.15,maxT=573.15,responsivityPath = "spectralResponse.txt",gainPath = "tauSignalVsTemp.txt"):
-        self.nLookupBins = 1000
+    def __init__(self,minW = 7E-6,maxW = 14E-6,minT=273.15,maxT=573.15,responsivityPath = "spectralResponseTau.txt",gainPath = "tauSignalVsTemp.txt"):
+        self.nLookupBins = 5000
         self.c1 = 1.1910E-16
         self.c2 = 0.014388
         self.minW = minW
@@ -16,7 +16,10 @@ class Model:
         self.maxT = maxT
         
         self.dir = os.path.dirname(os.path.realpath(__file__))
-        self.responsivityPath =  os.path.join(self.dir,responsivityPath)
+        if not responsivityPath == None:
+            self.responsivityPath =  os.path.join(self.dir,responsivityPath)
+        else:
+            self.responsivityPath = None
         self.gainPath = os.path.join(self.dir,gainPath)
         
         self.responsivityLUT = None #get the responsivity of a detector at a given wavelength
@@ -28,8 +31,9 @@ class Model:
         
     def generateLUTs(self):
         #create interpolation function for detector responsivity as a function of wavelength
-        responsivityData = np.genfromtxt(self.responsivityPath)
-        self.responsivityLUT = interp1d(responsivityData[:,0]*1E-6, responsivityData[:,1],fill_value='extrapolate')
+        if not self.responsivityPath == None:
+            responsivityData = np.genfromtxt(self.responsivityPath)
+            self.responsivityLUT = interp1d(responsivityData[:,0]*1E-6, responsivityData[:,1],fill_value='extrapolate')
         wavelength = np.arange(self.minW,self.maxW,0.1E-6)
         print("LUT 1/5 generated")
         #create interpolation function for radiance as a function of temperature and vice versa
@@ -89,8 +93,10 @@ class Model:
         #Spectral radiance emitted by a blackbody of temperature T
         #at a given wavelength (Scaled by detector response)
         L = self.c1/(wavelength**5)/(np.exp(self.c2/wavelength/T)-1)/1E10
-
-        return L*self.responsivityLUT(wavelength)
+        r = 1.0
+        if not self.responsivityLUT == None:
+            r = self.responsivityLUT(wavelength)
+        return L*r
     
         
     def linearFit(self,x,m,c):
@@ -100,6 +106,7 @@ class Model:
         wavelength = np.arange(self.minW,self.maxW,0.1E-6)
         responsivity = self.responsivityLUT(wavelength)
         plt.plot(wavelength,responsivity)
+        plt.ylim(ymin = 0, ymax  = 1)
         plt.title("Responsivity vs wavelength")
         plt.show()
     
